@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#10111b">
+<title>Pulse Chat — Community</title>
+<script src="https://cdn.pubnub.com/sdk/javascript/pubnub.13.1.3.min.js"></script>
+<style>
+:root{
+ --bg:#0b0d15;--sidebar:#101320;--panel:#151a2a;--panel2:#1b2133;--line:#282f45;
+ --text:#f4f5ff;--muted:#929bb5;--accent:#8b78ff;--accent2:#5c8dff;--good:#55d99c;
+ --danger:#ff6b7d;--bubble:#20283b;--shadow:0 24px 80px #0008;--radius:16px;
+}
+body[data-theme="light"]{--bg:#edf0f7;--sidebar:#f8f9fd;--panel:#fff;--panel2:#eef1f8;--line:#dce1ed;--text:#20263a;--muted:#65708a;--bubble:#edf0f8;--shadow:0 18px 55px #25345b22}
+body[data-theme="amoled"]{--bg:#000;--sidebar:#050505;--panel:#090909;--panel2:#111;--line:#222;--text:#f7f7fb;--muted:#8c8c99;--bubble:#151515;--shadow:0 20px 80px #000}
+*{box-sizing:border-box;margin:0;padding:0}
+body{height:100vh;min-height:520px;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;align-items:center;justify-content:center;padding:16px;transition:background .2s,color .2s}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+.app{width:min(1450px,100%);height:min(900px,94vh);min-height:500px;display:flex;overflow:hidden;border:1px solid var(--line);border-radius:22px;background:var(--panel);box-shadow:var(--shadow)}
+.sidebar{width:265px;flex-shrink:0;background:var(--sidebar);border-right:1px solid var(--line);padding:22px 15px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:11px;padding:0 8px 10px}
+.brand-mark{width:39px;height:39px;border-radius:13px;background:linear-gradient(135deg,#9b7bff,#4c9bff);display:grid;place-items:center;font-size:21px;font-weight:900;box-shadow:0 7px 22px #806aff55}
+.brand-name{font-weight:850;font-size:23px;letter-spacing:-1px}.brand-name span{color:var(--accent)}
+.side-label{font-size:10px;letter-spacing:1.6px;font-weight:800;color:var(--muted);padding:0 10px;margin-bottom:8px}
+.channel-list{display:grid;gap:5px}
+.channel{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;color:var(--muted);padding:11px 12px;border-radius:10px;text-align:left;font-size:13px;transition:.18s}
+.channel:hover{background:var(--panel2);color:var(--text)}
+.channel.active{background:#806aff24;color:var(--text);box-shadow:inset 2px 0 var(--accent)}
+.channel .hash{font-size:18px;color:var(--accent);font-weight:700}
+.channel .count{margin-left:auto;font-size:10px;background:var(--accent);color:white;padding:2px 6px;border-radius:20px}
+.side-actions{display:grid;gap:6px}
+.side-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;border:0;border-radius:10px;background:transparent;color:var(--muted);text-align:left;font-size:13px}
+.side-btn:hover{background:var(--panel2);color:var(--text)}
+.profile{margin-top:auto;padding:11px;background:var(--panel);border:1px solid var(--line);border-radius:14px;display:flex;align-items:center;gap:10px;min-width:0}
+.avatar{width:38px;height:38px;flex-shrink:0;border-radius:12px;background:linear-gradient(135deg,#bd78ff,#6279ff);display:grid;place-items:center;font-weight:850;color:white}
+.profile-info{min-width:0;flex:1}.profile-info strong{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.profile-info small{font-size:11px;color:var(--good)}
+.icon-btn{width:35px;height:35px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:10px;display:grid;place-items:center}
+.icon-btn:hover{color:var(--text);border-color:var(--accent)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.header{height:76px;flex-shrink:0;border-bottom:1px solid var(--line);padding:0 23px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.header-title{display:flex;align-items:center;gap:11px;min-width:0}.header-title h2{font-size:16px}.header-title p{font-size:11px;color:var(--muted);margin-top:4px}
+.header-tools{display:flex;align-items:center;gap:8px}.status{font-size:11px;color:var(--muted);white-space:nowrap}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#d9a441;margin-right:6px}.dot.online{background:var(--good)}
+.content{flex:1;min-height:0;display:flex;position:relative}
+.messages-wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.messages{flex:1;overflow:auto;padding:25px clamp(14px,3vw,36px);display:flex;flex-direction:column;gap:17px;scroll-behavior:smooth}
+.welcome{text-align:center;margin:auto;max-width:420px;color:var(--muted);font-size:13px;line-height:1.8;padding:30px}
+.welcome .orb{width:64px;height:64px;border-radius:22px;background:linear-gradient(135deg,#9b7bff,#4c9bff);display:grid;place-items:center;margin:0 auto 18px;font-size:30px;box-shadow:0 10px 35px #806aff44}
+.welcome strong{display:block;font-size:22px;color:var(--text);margin-bottom:5px}
+.message{display:flex;gap:11px;max-width:min(780px,92%);animation:pop .18s ease;align-self:flex-start}
+@keyframes pop{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.message.mine{align-self:flex-end;flex-direction:row-reverse}
+.message-avatar{width:35px;height:35px;flex-shrink:0;border-radius:12px;background:linear-gradient(135deg,#bd78ff,#6279ff);display:grid;place-items:center;color:white;font-size:12px;font-weight:800}
+.mine .message-avatar{background:linear-gradient(135deg,#40c9ce,#6174ff)}
+.message-content{min-width:0}
+.message-info{font-size:11px;color:var(--muted);margin:0 0 6px;display:flex;gap:8px;align-items:center}.mine .message-info{justify-content:flex-end}
+.bubble{background:var(--bubble);border:1px solid var(--line);padding:11px 14px;border-radius:4px 14px 14px 14px;font-size:13px;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap}
+.mine .bubble{background:linear-gradient(135deg,#7059e8,#5143b5);border-color:transparent;color:white;border-radius:14px 4px 14px 14px}
+.reply-preview{font-size:11px;color:var(--muted);border-left:2px solid var(--accent);padding:4px 8px;margin-bottom:6px;background:var(--panel2);border-radius:0 7px 7px 0}
+.message-actions{display:flex;gap:5px;margin-top:5px;opacity:0;transition:.15s}.message:hover .message-actions{opacity:1}
+.message-actions button,.reaction{border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:8px;padding:4px 8px;font-size:11px}
+.message-actions button:hover,.reaction:hover{color:var(--text);border-color:var(--accent)}
+.reactions{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.reaction.selected{border-color:var(--accent);background:#806aff22;color:var(--text)}
+.typing{height:20px;padding:0 28px;color:var(--muted);font-size:11px}
+.composer{padding:13px 22px 17px;border-top:1px solid var(--line);background:var(--panel)}
+.reply-bar{display:none;align-items:center;gap:10px;padding:8px 10px;margin-bottom:8px;background:var(--panel2);border-radius:9px;font-size:11px;color:var(--muted)}
+.reply-bar.show{display:flex}.reply-bar span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.input-area{display:flex;align-items:center;gap:8px;padding:7px;background:var(--panel2);border:1px solid var(--line);border-radius:14px}
+.input-area:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px #806aff18}
+.input-area input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--text);padding:10px 6px;font-size:13px}
+.input-area input::placeholder{color:var(--muted)}
+.send{border:0;background:linear-gradient(135deg,#8d75ff,#5e69e9);color:white;padding:10px 17px;border-radius:10px;font-weight:750;font-size:12px}
+.send:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.composer-hint{font-size:10px;color:var(--muted);text-align:center;margin-top:8px}
+.emoji-menu{position:absolute;bottom:88px;left:24px;z-index:5;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:13px;padding:10px;display:none;grid-template-columns:repeat(8,34px);gap:3px}
+.emoji-menu.show{display:grid}.emoji-menu button{border:0;background:transparent;border-radius:7px;padding:6px;font-size:19px}.emoji-menu button:hover{background:var(--panel2)}
+.search-panel{display:none;position:absolute;z-index:8;right:20px;top:12px;width:min(380px,calc(100% - 40px));background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow)}
+.search-panel.show{display:block}.search-panel input{width:100%;background:var(--panel2);border:1px solid var(--line);padding:10px;border-radius:9px;color:var(--text);outline:0}
+.search-results{max-height:260px;overflow:auto;margin-top:8px}.search-result{padding:9px;border-radius:8px;font-size:12px;color:var(--muted);cursor:pointer}.search-result:hover{background:var(--panel2);color:var(--text)}
+.modal-backdrop{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:20;padding:18px}
+.modal-backdrop.show{display:flex}.modal{width:min(440px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+.modal h3{font-size:18px;margin-bottom:6px}.modal p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:17px}
+.field{display:grid;gap:6px;margin:13px 0}.field label{font-size:11px;color:var(--muted);font-weight:700}.field input,.field select{width:100%;padding:11px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;color:var(--text);outline:0}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.btn{padding:9px 13px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:12px}.btn.primary{background:var(--accent);border-color:var(--accent);color:white}
+.toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#202638;color:white;border:1px solid #3a4562;padding:10px 15px;border-radius:10px;font-size:12px;z-index:40;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
+.mobile-menu{display:none}
+@media(max-width:760px){
+ body{padding:0;min-height:0}.app{height:100dvh;max-height:none;border-radius:0;border:0}
+ .sidebar{width:76px;padding:17px 9px}.brand{justify-content:center;padding:0 0 8px}.brand-name,.side-label,.channel .channel-name,.side-btn span,.profile-info,.profile .icon-btn{display:none}
+ .brand-mark{width:42px;height:42px}.channel{justify-content:center;padding:12px 5px}.channel .hash{font-size:20px}.channel .count{display:none}
+ .side-btn{justify-content:center;padding:12px 4px;font-size:18px}.profile{justify-content:center;padding:8px 4px}.profile .avatar{width:38px;height:38px}
+ .header{height:68px;padding:0 13px}.header-tools{gap:5px}.status{font-size:0}.status .dot{margin:0}.header-title p{display:none}
+ .messages{padding:17px 12px}.message{max-width:96%}.composer{padding:10px}.typing{padding:0 14px}
+ .mobile-menu{display:grid}.emoji-menu{left:10px;bottom:85px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body data-theme="dark">
+<div class="app">
+ <aside class="sidebar">
+  <div class="brand"><div class="brand-mark">✦</div><div class="brand-name">pulse<span>.</span></div></div>
+  <section><div class="side-label">WORKSPACE</div><div class="channel-list" id="channelList"></div></section>
+  <section><div class="side-label">QUICK ACTIONS</div><div class="side-actions">
+   <button class="side-btn" id="addChannelBtn">＋ <span>Add public channel</span></button>
+   <button class="side-btn" id="createPrivateBtn">🔒 <span>Create private room</span></button>
+   <button class="side-btn" id="joinPrivateBtn">↪ <span>Join with code</span></button>
+   <button class="side-btn" id="searchBtn">⌕ <span>Search messages</span></button>
+   <button class="side-btn" id="exportBtn">⇩ <span>Export this chat</span></button>
+   <button class="side-btn" id="settingsBtn">⚙ <span>Settings</span></button>
+  </div></section>
+  <div class="profile"><div class="avatar" id="profileAvatar">U</div><div class="profile-info"><strong id="profileName">User</strong><small>● Chat member</small></div><button class="icon-btn" id="editProfileBtn" title="Edit profile">✎</button></div>
+ </aside>
+ <main class="main">
+  <header class="header">
+   <div class="header-title"><button class="icon-btn mobile-menu" id="mobileChannels" title="Channels">☰</button><div><h2 id="roomTitle"># general</h2><p id="roomDescription">A place to talk with everyone.</p></div></div>
+   <div class="header-tools"><div class="status" id="connection"><span class="dot"></span>Connecting…</div><button class="icon-btn" id="headerSearch" title="Search">⌕</button><button class="icon-btn" id="notifyBtn" title="Enable notifications">♧</button></div>
+  </header>
+  <div class="content">
+   <div class="messages-wrap"><div class="messages" id="messages"><div class="welcome"><div class="orb">✦</div><strong>Welcome to Pulse</strong>Your community starts here.<br>Send the first message and get the conversation going.</div></div><div class="typing" id="typing"></div>
+    <div class="composer">
+     <div class="reply-bar" id="replyBar"><span id="replyText">Replying…</span><button class="icon-btn" id="cancelReply" title="Cancel reply">×</button></div>
+     <form class="input-area" id="chatForm"><button type="button" class="icon-btn" id="emojiBtn" title="Emoji">☺</button><input id="messageInput" placeholder="Message #general…" maxlength="1500" autocomplete="off" required><button class="send" type="submit">Send ➤</button></form>
+     <div class="composer-hint">Enter to send · Shift + Enter for a new line · Filtered language is replaced automatically</div>
+    </div>
+   </div>
+   <div class="emoji-menu" id="emojiMenu"></div>
+   <div class="search-panel" id="searchPanel"><input id="searchInput" placeholder="Search messages in this channel…"><div class="search-results" id="searchResults"></div></div>
+  </div>
+ </main>
+</div>
+<div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+<script>
+/* -------------------------------------------------------
+   SECURITY NOTE:
+   The join-code feature derives an obscure PubNub channel name in
+   the browser. It is NOT strong access control: users can inspect
+   client code/network traffic. For genuinely private rooms, enforce
+   membership with PubNub Access Manager tokens from a trusted server.
+   Profanity filtering also runs client-side and can be bypassed by
+   modified clients; use server-side moderation for enforcement.
+-------------------------------------------------------- */
+/* -------------------------------------------------------
+   PULSE CONFIGURATION
+   These are public client-side PubNub publish/subscribe keys.
+   Never put secret keys, admin keys, or private tokens here.
+-------------------------------------------------------- */
+const CONFIG = {
+  publishKey: "pub-c-c707705c-e3e8-4c11-b3ed-d6b4e9f9c268",
+  subscribeKey: "sub-c-93ed61c1-a208-4d1b-97a6-05b5c98132de",
+  channels: ["general", "gaming", "memes", "off-topic"],
+  historyCount: 75
+};
+
+const $ = id => document.getElementById(id);
+const safeText = value => String(value ?? "");
+const stored = (key, fallback) => { try { const v=localStorage.getItem(key); return v===null?fallback:v; } catch { return fallback; } };
+let username = stored("pulse_username", "");
+if (!username) {
+  username = (prompt("Choose your Pulse username:") || "Guest").trim().slice(0,24) || "Guest";
+  try { localStorage.setItem("pulse_username", username); } catch {}
+}
+let activeChannel = stored("pulse_channel", "general");
+let channels = (()=>{try{return JSON.parse(stored("pulse_channels",JSON.stringify(CONFIG.channels)))}catch{return [...CONFIG.channels]}})();
+if (!Array.isArray(channels) || !channels.length) channels=[...CONFIG.channels];
+let privateRooms = (()=>{try{return JSON.parse(stored("pulse_private_rooms","{}"))}catch{return {}}})();
+if (!privateRooms || typeof privateRooms !== "object" || Array.isArray(privateRooms)) privateRooms={};
+if (!channels.includes(activeChannel) && !privateRooms[activeChannel]) activeChannel=channels[0];
+let currentReply = null, typingTimer = null, typingCooldown = 0;
+
+// Private-room channel names are derived from the room name + join code.
+// This lets members enter the same room without putting the join code in messages.
+async function roomChannelId(name, code) {
+  const normalized = name.trim().toLowerCase();
+  const material = normalized + "|" + code;
+  if (crypto.subtle && window.TextEncoder) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(material));
+    const hex = Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    return "pulse-private-" + hex.slice(0,40);
+  }
+  // Fallback for browsers that don't expose Web Crypto (less resistant to guessing).
+  let hash=2166136261; for(let i=0;i<material.length;i++){hash^=material.charCodeAt(i);hash=Math.imul(hash,16777619)}
+  return "pulse-private-" + (hash>>>0).toString(16);
+}
+function pubChannelFor(name) {
+  return privateRooms[name]?.channelId || ("pulse-" + name);
+}
+function savePrivateRooms(){try{localStorage.setItem("pulse_private_rooms",JSON.stringify(privateRooms))}catch{}}
+function rememberPrivateRoom(name, channelId) {
+  privateRooms[name]={channelId};
+  if(!channels.includes(name)) channels.push(name);
+  savePrivateRooms();saveChannels();renderChannels();
+}
+const rendered = new Set();
+const messageCache = {};
+const userId = "pulse-" + (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+const pubnub = new PubNub({publishKey:CONFIG.publishKey,subscribeKey:CONFIG.subscribeKey,userId,ssl:true});
+let subscription = null;
+
+function toast(message) {
+  $("toast").textContent=message; $("toast").classList.add("show");
+  clearTimeout(toast.timer); toast.timer=setTimeout(()=>$("toast").classList.remove("show"),2600);
+}
+function setConnection(text, online=false) {
+  $("connection").innerHTML='<span class="dot '+(online?'online':'')+'"></span>'+text;
+}
+function updateProfile() {
+  $("profileName").textContent=username;
+  $("profileAvatar").textContent=(username[0]||"U").toUpperCase();
+}
+function saveChannels(){try{localStorage.setItem("pulse_channels",JSON.stringify(channels));localStorage.setItem("pulse_channel",activeChannel)}catch{}}
+function renderChannels(){
+  $("channelList").replaceChildren();
+  channels.forEach(name=>{
+    const b=document.createElement("button");b.className="channel"+(name===activeChannel?" active":"");
+    const isPrivate=!!privateRooms[name];
+    const hash=document.createElement("span");hash.className="hash";hash.textContent=isPrivate?"🔒":"#";
+    const label=document.createElement("span");label.className="channel-name";label.textContent=name;
+    b.append(hash,label);b.title=(isPrivate?"Private room: ":"# ")+name;b.addEventListener("click",()=>switchChannel(name));
+    $("channelList").append(b);
+  });
+  $("roomTitle").textContent="# "+activeChannel;
+  $("messageInput").placeholder="Message #"+activeChannel+"…";
+  $("roomDescription").textContent=privateRooms[activeChannel]?"Private room · Join code required to discover the room":"A place to talk in #"+activeChannel+".";
+}
+function showWelcome(){
+  $("messages").replaceChildren();
+  const w=document.createElement("div");w.className="welcome";
+  const orb=document.createElement("div");orb.className="orb";orb.textContent="✦";
+  const strong=document.createElement("strong");strong.textContent="Welcome to #"+activeChannel;
+  w.append(orb,strong,document.createTextNode("This is the beginning of this channel. Say hello!"));
+  $("messages").append(w);
+}
+function cacheMessage(channel,data){
+  if(!messageCache[channel])messageCache[channel]=[];
+  if(data.type==="chat" || !data.type){
+    if(!messageCache[channel].some(m=>m.id===data.id))messageCache[channel].push(data);
+    if(messageCache[channel].length>500)messageCache[channel].shift();
+  }
+}
+// Client-side profanity filter. This is a basic courtesy filter, not a moderation/security boundary.
+const BLOCKED_WORDS = [
+ "arse","asshole","bastard","bitch","bullshit","cunt","damn"," dick ","dickhead",
+ "fuck","fucking","motherfucker","nigger","nigga","piss","prick","shit","shitty","slut","twat","whore"
+];
+function filterBadWords(value) {
+  let result=String(value ?? "");
+  for (const raw of BLOCKED_WORDS) {
+    const word=raw.trim();
+    if(!word) continue;
+    const escaped=word.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\\\$&");
+    const pattern=new RegExp("(^|[^a-z0-9])"+escaped+"(?![a-z0-9])","gi");
+    result=result.replace(pattern,(match,prefix)=>prefix+"••••");
+  }
+  return result;
+}
+function formatTime(ms){
+  const d=new Date(ms||Date.now());
+  return d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+}
+function addMessage(data, isMine=false, channel=activeChannel){
+  if(!data || typeof data.text!=="string" || channel!==activeChannel) return;
+  const id=data.id || (data.userId+"-"+data.sentAt+"-"+data.text);
+  if(rendered.has(id)) return;
+  rendered.add(id); cacheMessage(channel,data);
+  const welcome=$("messages").querySelector(".welcome");if(welcome)welcome.remove();
+  const wrap=document.createElement("article");wrap.className="message"+(isMine?" mine":"");wrap.dataset.id=id;
+  const avatar=document.createElement("div");avatar.className="message-avatar";avatar.textContent=(data.sender||"U").slice(0,1).toUpperCase();
+  const content=document.createElement("div");content.className="message-content";
+  const info=document.createElement("div");info.className="message-info";
+  const who=document.createElement("strong");who.textContent=data.sender||"Unknown";
+  const when=document.createElement("span");when.textContent=formatTime(data.sentAt);
+  info.append(who,when);
+  if(data.replyTo){const reply=document.createElement("div");reply.className="reply-preview";reply.textContent="↳ "+filterBadWords(data.replyTo);content.append(reply)}
+  const bubble=document.createElement("div");bubble.className="bubble";bubble.textContent=filterBadWords(data.text);
+  content.append(info,bubble);
+  if(Array.isArray(data.reactions)&&data.reactions.length){const r=document.createElement("div");r.className="reactions";data.reactions.forEach(emoji=>{const b=document.createElement("button");b.className="reaction";b.textContent=emoji;b.onclick=()=>sendReaction(id,emoji);r.append(b)});content.append(r)}
+  const actions=document.createElement("div");actions.className="message-actions";
+  const replyBtn=document.createElement("button");replyBtn.textContent="↩ Reply";replyBtn.onclick=()=>setReply(data.sender+": "+data.text.slice(0,90));
+  const reactBtn=document.createElement("button");reactBtn.textContent="☺ React";reactBtn.onclick=()=>{const e=prompt("Choose an emoji to react with:","👍");if(e)sendReaction(id,e.slice(0,8))};
+  const copyBtn=document.createElement("button");copyBtn.textContent="Copy";copyBtn.onclick=()=>{if(navigator.clipboard?.writeText)navigator.clipboard.writeText(data.text).then(()=>toast("Message copied")).catch(()=>toast("Copy not available"));else toast("Clipboard not available")};
+  actions.append(replyBtn,reactBtn,copyBtn);content.append(actions);
+  wrap.append(avatar,content);$("messages").append(wrap);
+  $("messages").scrollTop=$("messages").scrollHeight;
+}
+function setReply(text){currentReply=text;$("replyText").textContent="Replying to: "+text;$("replyBar").classList.add("show");$("messageInput").focus()}
+function cancelReply(){currentReply=null;$("replyBar").classList.remove("show")}
+function publish(payload, channel=activeChannel){
+  return pubnub.publish({channel:pubChannelFor(channel),message:payload,storeInHistory:true});
+}
+async function loadHistory(channel){
+  showWelcome();rendered.clear();messageCache[channel]=[];
+  // History is optional: it requires PubNub Message Persistence to be enabled.
+  if(typeof pubnub.history!=="function")return;
+  try{
+    pubnub.history({channel:pubChannelFor(channel),count:CONFIG.historyCount,reverse:true},(status,response)=>{
+      if(status){console.warn("History unavailable:",status);return}
+      const items=response?.messages||[];
+      if(items.length){$("messages").replaceChildren();items.forEach(item=>{
+        const data=item.entry||item.message||item;
+        if(data && typeof data.text==="string"){cacheMessage(channel,data);addMessage(data,data.userId===userId,channel)}
+      });}
+    });
+  }catch(err){console.info("History is not available in this PubNub SDK/configuration.",err)}
+}
+function subscribeTo(channel){
+  try{if(subscription)subscription.unsubscribe()}
+  catch(e){console.warn(e)}
+  subscription=pubnub.channel(pubChannelFor(channel)).subscription();
+  subscription.subscribe();
+}
+function switchChannel(name){
+  if(!channels.includes(name))return;
+  activeChannel=name;saveChannels();renderChannels();cancelReply();$("typing").textContent="";
+  subscribeTo(name);loadHistory(name);
+}
+function sendReaction(messageId,emoji){
+  publish({type:"reaction",targetId:messageId,emoji,sender:username,userId,sentAt:Date.now()})
+    .catch(()=>toast("Could not send reaction"));
+}
+pubnub.addListener({
+ status:event=>{
+  if(event.category==="PNConnectedCategory")setConnection("Connected",true);
+  else if(event.category==="PNNetworkDownCategory"||event.category==="PNNetworkIssuesCategory")setConnection("Reconnecting…",false);
+  else if(event.category==="PNNetworkUpCategory")setConnection("Connected",true);
+ },
+ message:event=>{
+  const data=event.message;
+  const channelName=event.channel||"";
+  const channel=Object.keys(privateRooms).find(name=>privateRooms[name].channelId===channelName) || channelName.replace(/^pulse-/,"");
+  if(!data||channel!==activeChannel)return;
+  if(data.type==="typing"){
+    if(data.userId!==userId){$("typing").textContent=data.sender+" is typing…";clearTimeout(typingTimer);typingTimer=setTimeout(()=>$("typing").textContent="",2200)}
+    return;
+  }
+  if(data.type==="reaction"){
+    const target=$("messages").querySelector('[data-id="'+CSS.escape(data.targetId||"")+'"]');
+    if(target){let r=target.querySelector(".reactions");if(!r){r=document.createElement("div");r.className="reactions";target.querySelector(".message-content").append(r)}
+      const b=document.createElement("button");b.className="reaction";b.textContent=data.emoji;r.append(b)}
+    return;
+  }
+  if(data.type==="chat"||!data.type){addMessage(data,data.userId===userId,channel)}
+ }
+});
+$("chatForm").addEventListener("submit",async e=>{
+ e.preventDefault();const rawText=$("messageInput").value.trim();if(!rawText)return;
+ const text=filterBadWords(rawText);
+ if(text!==rawText)toast("Some language was filtered before sending.");
+ const data={type:"chat",id:userId+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),text,sender:username,userId,sentAt:Date.now(),replyTo:currentReply};
+ $("messageInput").disabled=true;
+ try{await publish(data);addMessage(data,true);$("messageInput").value="";cancelReply();try{localStorage.removeItem("pulse_draft_"+activeChannel)}catch{}}
+ catch(err){console.error(err);toast("Message failed. Check your connection and PubNub keys.")}
+ finally{$("messageInput").disabled=false;$("messageInput").focus()}
+});
+$("messageInput").addEventListener("input",()=>{
+ try{localStorage.setItem("pulse_draft_"+activeChannel,$("messageInput").value)}catch{}
+ if(Date.now()-typingCooldown>1800){typingCooldown=Date.now();publish({type:"typing",sender:username,userId,sentAt:Date.now()}).catch(()=>{})}
+});
+$("messageInput").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("chatForm").requestSubmit()}});
+$("cancelReply").onclick=cancelReply;
+$("addChannelBtn").onclick=()=>openModal("Create a public channel","Choose a short channel name. Anyone using this Pulse workspace can join public channels.",`
+ <div class="field"><label>CHANNEL NAME</label><input id="newChannelName" maxlength="24" placeholder="project-room"></div>`,
+ ()=>{let name=$("newChannelName").value.trim().toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/^-+|-+$/g,"");if(!name)return toast("Enter a channel name");if(channels.includes(name))return toast("That channel already exists");channels.push(name);saveChannels();renderChannels();switchChannel(name)});
+async function createOrJoinPrivateRoom(mode) {
+ const title=mode==="create"?"Create a private room":"Join a private room";
+ const description=mode==="create"
+  ?"Give your room a name and a join code. Share both with people you want to invite."
+  :"Enter the exact room name and join code shared by the room creator.";
+ openModal(title,description,`
+  <div class="field"><label>ROOM NAME</label><input id="privateRoomName" maxlength="32" placeholder="friends-lounge"></div>
+  <div class="field"><label>JOIN CODE</label><input id="privateRoomCode" type="password" minlength="4" maxlength="80" placeholder="At least 4 characters" autocomplete="new-password"></div>
+  <p style="margin:8px 0 0;font-size:11px;color:var(--muted)">Use a unique code. Anyone who knows the room name and code can join.</p>`,
+  async ()=>{
+   const name=$("privateRoomName").value.trim().toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/^-+|-+$/g,"");
+   const code=$("privateRoomCode").value;
+   if(!name||code.length<4){toast("Enter a room name and a code of at least 4 characters");return}
+   const channelId=await roomChannelId(name,code);
+   rememberPrivateRoom(name,channelId);
+   closeModal();switchChannel(name);
+   toast(mode==="create"?"Private room created. Share its name and code!":"Joined private room.");
+ });
+}
+$("createPrivateBtn").onclick=()=>createOrJoinPrivateRoom("create");
+$("joinPrivateBtn").onclick=()=>createOrJoinPrivateRoom("join");
+$("editProfileBtn").onclick=()=>openModal("Your profile","Change the display name shown next to your messages.",`
+ <div class="field"><label>DISPLAY NAME</label><input id="profileEdit" maxlength="24" value="${escapeAttr(username)}"></div>`,
+ ()=>{const v=$("profileEdit").value.trim().slice(0,24);if(!v)return toast("Name cannot be empty");username=v;try{localStorage.setItem("pulse_username",v)}catch{}updateProfile();toast("Profile updated")});
+function escapeAttr(s){return safeText(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+function openModal(title,description,body,save){
+ $("modal").innerHTML=`<h3>${title}</h3><p>${description}</p>${body}<div class="modal-actions"><button class="btn" id="modalCancel">Cancel</button><button class="btn primary" id="modalSave">Save</button></div>`;
+ $("modalBackdrop").classList.add("show");$("modalCancel").onclick=closeModal;
+ $("modalSave").onclick=()=>{save();closeModal()};
+}
+function closeModal(){$("modalBackdrop").classList.remove("show")}
+$("modalBackdrop").addEventListener("click",e=>{if(e.target===$("modalBackdrop"))closeModal()});
+$("settingsBtn").onclick=()=>openModal("Pulse settings","Customize the appearance and behavior of this browser.",`
+ <div class="field"><label>THEME</label><select id="themeSelect"><option value="dark">Dark</option><option value="amoled">AMOLED black</option><option value="light">Light</option></select></div>
+ <div class="field"><label>MESSAGE DISPLAY</label><select id="densitySelect"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></div>
+ <div class="field"><label>NOTIFICATIONS</label><select id="notificationSelect"><option value="off">Off</option><option value="on">On (browser permission required)</option></select></div>`,
+ ()=>{applyTheme($("themeSelect").value);document.body.dataset.density=$("densitySelect").value;try{localStorage.setItem("pulse_density",$("densitySelect").value);localStorage.setItem("pulse_theme",$("themeSelect").value)}catch{}if($("notificationSelect").value==="on")enableNotifications()});
+function applyTheme(t){document.body.dataset.theme=t}
+$("searchBtn").onclick=$("headerSearch").onclick=()=>{$("searchPanel").classList.toggle("show");$("searchInput").focus()};
+$("searchInput").addEventListener("input",()=>{
+ const q=$("searchInput").value.toLowerCase();const out=$("searchResults");out.replaceChildren();
+ (messageCache[activeChannel]||[]).filter(m=>m.text.toLowerCase().includes(q)&&q).slice(-30).reverse().forEach(m=>{
+  const row=document.createElement("div");row.className="search-result";row.textContent=(m.sender||"User")+": "+m.text.slice(0,130);
+  row.onclick=()=>{const node=$("messages").querySelector('[data-id="'+CSS.escape(m.id||"")+'"]');if(node){node.scrollIntoView({behavior:"smooth",block:"center"});node.style.outline="2px solid var(--accent)";setTimeout(()=>node.style.outline="",1300)}$("searchPanel").classList.remove("show")};out.append(row);
+ });
+ if(!out.children.length&&q){const empty=document.createElement("div");empty.className="search-result";empty.textContent="No matching messages loaded.";out.append(empty)}
+});
+$("exportBtn").onclick=()=>{
+ const data=messageCache[activeChannel]||[];
+ const blob=new Blob([JSON.stringify({channel:activeChannel,exportedAt:new Date().toISOString(),messages:data},null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="pulse-"+activeChannel+"-chat.json";a.click();URL.revokeObjectURL(url);toast("Chat export created");
+};
+function enableNotifications(){
+ if(!("Notification"in window))return toast("Notifications are not supported in this browser");
+ Notification.requestPermission().then(p=>toast(p==="granted"?"Notifications enabled": "Notification permission not granted"));
+}
+$("notifyBtn").onclick=enableNotifications;
+const emojis=["😀","😂","🥹","😍","😎","🤔","😭","🔥","❤️","💀","👍","👎","🎉","✨","🚀","💯","👀","🙌","😴","🤝","🤣","😈","💜","⭐","🍿","🎮","🐸","☕","🌈","⚡","🙏","🫡"];
+emojis.forEach(e=>{const b=document.createElement("button");b.type="button";b.textContent=e;b.onclick=()=>{$("messageInput").value+=$("messageInput").value?" "+e:e;$("messageInput").focus();$("emojiMenu").classList.remove("show")};$("emojiMenu").append(b)});
+$("emojiBtn").onclick=()=>$("emojiMenu").classList.toggle("show");
+document.addEventListener("click",e=>{if(!$("emojiMenu").contains(e.target)&&e.target!==$("emojiBtn"))$("emojiMenu").classList.remove("show")});
+$("mobileChannels").onclick=()=>toast("Choose a channel from the left sidebar");
+function restoreDraft(){try{$("messageInput").value=localStorage.getItem("pulse_draft_"+activeChannel)||""}catch{}}
+const originalSwitch=switchChannel;
+switchChannel=function(name){originalSwitch(name);restoreDraft()};
+document.body.dataset.theme=stored("pulse_theme","dark");
+document.body.dataset.density=stored("pulse_density","comfortable");
+const densityStyle=document.createElement("style");densityStyle.textContent='body[data-density="compact"] .messages{gap:9px;padding-top:15px;padding-bottom:15px}body[data-density="compact"] .bubble{padding:7px 11px}';document.head.append(densityStyle);
+updateProfile();renderChannels();subscribeTo(activeChannel);loadHistory(activeChannel);restoreDraft();
+window.addEventListener("beforeunload",()=>{try{if(subscription)subscription.unsubscribe()}catch{}});
+</script>
+</body>
+</html>
